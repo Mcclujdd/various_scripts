@@ -1,0 +1,65 @@
+#!/usr/bin/env python
+#download chainsawman manga from chainsawmanmangaa.com
+
+import requests, os, bs4
+url = 'https://chainsawmanmangaa.com/'
+chapters = []
+chapter_links = []
+errors = []
+#get list of chapters from main page ul, li items
+res = requests.get(url)
+res.raise_for_status()
+soup = bs4.BeautifulSoup(res.text, 'html.parser')
+chapters = soup.select('#content > div > div > div > div.nv-content-wrap.entry-content > ul')
+
+for l in chapters[0].contents:
+    for n in l:
+        chapter_links.append(n['href'])
+chapter_links.reverse()
+
+os.makedirs('chainsawman_mangaa', exist_ok=True)   # store comics in ./chainsawman
+
+i = 0
+
+for link in chapter_links:
+    i += 1
+    url = link
+
+    if os.path.isdir(f'chainsawman_mangaa/ch_{str(i)}'):
+        print('Chapter %s has been downloaded already.' % i)
+        continue
+    else:
+        print('Downloading page %s...' % url)
+        try:
+            res = requests.get(url)
+            res.raise_for_status()
+            soup = bs4.BeautifulSoup(res.text, 'html.parser')
+        except:
+            print('Could not download %s' % url)
+            errors.append(url)
+            continue
+        os.makedirs('chainsawman_mangaa/ch_'+str(i), exist_ok=True)
+        comicElem = soup.select('figure.wp-block-image img[src]')
+        for img in comicElem:
+            src = img['src']
+            print('Downloading image %s...' % src)
+            try:
+                res = requests.get(src)
+                res.raise_for_status()
+            except:
+                print('Error downloading image %s.' % src)
+                errors.append(src)
+                continue
+
+            imageFile = open(os.path.join('chainsawman_mangaa'+'/ch_'+str(i), f'ch{i:03d}_panel{comicElem.index(img):03d}.jpg'), 'wb')
+            for chunk in res.iter_content(100000):
+                imageFile.write(chunk)
+            imageFile.close()
+
+
+
+
+print('Done.')
+print('The following could not be downloaded due to errors retrieving the page.')
+for ele in errors:
+    print(ele)
